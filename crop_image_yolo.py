@@ -1,6 +1,3 @@
-from cProfile import label
-from operator import iadd
-from tkinter import image_names
 import cv2
 import numpy as np
 import os
@@ -10,7 +7,8 @@ from pathlib import Path
 import pandas as pd
 import argparse
 from glob import glob
-
+from tqdm import tqdm
+import os
 class SlicingImage():
     def __init__(self,class_size, crop_size=512, save_path="crop_images"):
         self.crop_size = int(crop_size)
@@ -25,8 +23,9 @@ class SlicingImage():
 
 
     def boxesFromYOLO(self,imagePath,labelPath):
+        
         image = cv2.imread(imagePath)
-        print(image.shape)
+        #print(image.shape)
         (hI, wI) = image.shape[:2]
         lines = [line.rstrip('\n') for line in open(labelPath)]
         #if(len(objects)<1):
@@ -106,6 +105,7 @@ class SlicingImage():
 
 
     def crop_img(self,img):
+
         img = cv2.imread(img)
         img_shape_w = img.shape[1]
         img_shape_h = img.shape[0]
@@ -148,12 +148,12 @@ class SlicingImage():
                     crop_images.append(split_img)
 
                 katsayi_y +=1
-
+                """
                 cv2.namedWindow("image", cv2.WINDOW_NORMAL)
                 cv2.resizeWindow("image", 1400, 800)
                 cv2.imshow("image", image)
                 cv2.waitKey(0)
-                
+                """
         #print("crop_images len:",len(crop_images))
         return crop_images
                 
@@ -245,7 +245,7 @@ class SlicingImage():
             
             
             for num,image in enumerate(images):
-                print("find_contour_area i ", num," image shape:",image.shape)
+                #print("find_contour_area i ", num," image shape:",image.shape)
                 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 ret, thresh = cv2.threshold(gray, 0, 255, 0)
                 contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
@@ -295,7 +295,7 @@ class SlicingImage():
             #print(f"boxes {lb}",boxes)
             self.save_img_txt(img[lb],boxes)
         
-        print("görüntü kırpma işlemi bitti")
+        
 
 
 
@@ -312,58 +312,24 @@ if __name__ == '__main__':
     img_slicing = SlicingImage(opt.classes_len,opt.crop_size,opt.save_path)
 
     label_names = glob(opt.img_path + '/*.txt')
-    print("label_names",label_names)
 
-    for label_name in label_names:
-        print("label_name",label_name)
+    for label_name in tqdm(label_names):
         img_name = label_name.replace('.txt','.jpg')
-        images = img_slicing.crop_img(img_name)
-        img,boxes = img_slicing.boxesFromYOLO(img_name,label_name)
-        #img_slicing.showBoxes(img,boxes)
-        canvas = np.zeros((img.shape[0],img.shape[1],3), np.uint8)
-        label_canvas = img_slicing.showBoxes(canvas,boxes)
-        print("image len: ",len(images))
-        img_slicing.find_contour_area(images,boxes,canvas,img.shape[1],img.shape[0])
 
+        if not os.path.exists(img_name):
+            img_name = img_name.replace("jpg","png")
 
+            if not os.path.exists(img_name):
+                img_name = img_name.replace("png","JPG")
 
-
-
-
-"""
-
-image = cv2.imread("data/yeni_img_1637.jpg")
-img_shape_w = image.shape[1]
-img_shape_h = image.shape[0]
-
-
-
-
-
-
-images = img_slicing.crop_img(image,img_shape_w,img_shape_h)
-
-#crop_images_show(images)
-
-for i in images:
-    image_name = f'crop_img_' + datetime.now().strftime("%d.%m.%Y_%H.%M.%S.%f") 
-    cv2.imwrite(os.path.join(photo_dir, image_name + ".jpg"), i)
-
-
-
-img,boxes = img_slicing.boxesFromYOLO("data/yeni_img_1637.jpg","data/yeni_img_1637.txt")
-#showBoxes(img,boxes)
-
-
-canvas = np.zeros((img_shape_h,img_shape_w,3),dtype="uint8")
-label_canvas = img_slicing.showBoxes(canvas,boxes)
-
-
-#label_images = crop_label_img(label_canvas,img_shape_w,img_shape_h)
-#crop_images_show(label_images)
-
-img_slicing.find_contour_area(images,boxes,canvas,img_shape_w,img_shape_h)
-
-
-
-"""
+        try:
+            images = img_slicing.crop_img(img_name)
+            img,boxes = img_slicing.boxesFromYOLO(img_name,label_name)
+            #img_slicing.showBoxes(img,boxes)
+            canvas = np.zeros((img.shape[0],img.shape[1],3), np.uint8)
+            label_canvas = img_slicing.showBoxes(canvas,boxes)
+            img_slicing.find_contour_area(images,boxes,canvas,img.shape[1],img.shape[0])
+        except:
+            print("error in ",img_name," dose not exist")
+            continue
+    print("görüntü kırpma işlemi bitti")
