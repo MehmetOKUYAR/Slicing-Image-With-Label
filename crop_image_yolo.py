@@ -9,6 +9,8 @@ import argparse
 from glob import glob
 from tqdm import tqdm
 import os
+
+
 class SlicingImage():
     def __init__(self,class_size, crop_size=512, save_path="crop_images"):
         self.crop_size = int(crop_size)
@@ -159,7 +161,7 @@ class SlicingImage():
                 
 
     def crop_label_img(self,img,img_shape_w,img_shape_h):
-        image = img.copy()
+        image = img.copy() 
         crop_images = []
         mod_w =img_shape_w % self.crop_size
         mod_h = img_shape_h % self.crop_size

@@ -79,7 +79,7 @@ class SlicingImage():
 
             file_path = os.path.join(self.photo_dir, image_name+ ".txt")
             
-            print("yolo_data",yolo_data)
+            #print("yolo_data",yolo_data)
             if len(yolo_data)>0:
                 with open(file_path, 'w') as f:
                     np.savetxt(
@@ -151,7 +151,10 @@ class SlicingImage():
                     cls, x_min,y_min, x_max, y_max = box[0], box[1], box[2], box[3], box[4]
 
                     
-                    if (x <= x_min <= x+self.crop_size and y <= y_min <= y+self.crop_size) or (x <= x_max <= x+self.crop_size and y <= y_max <= y+self.crop_size):
+                    if (x <= x_min <= x+self.crop_size and y <= y_min <= y+self.crop_size) or \
+                        (x <= x_max <= x+self.crop_size and y <= y_max <= y+self.crop_size) or \
+                        (x <= x_min <= x+self.crop_size and y <= y_max <= y+self.crop_size) or \
+                        (x <= x_max <= x+self.crop_size and y <= y_min <= y+self.crop_size):
                  
                         if x-x_min < 0:
                             new_x_min = abs(x-x_min)
@@ -183,11 +186,12 @@ class SlicingImage():
                         box_h = (new_y_max - new_y_min)/split_img_shape_h
 
                         #print("box",box_center_x,box_center_y,box_w,box_h)
-                        if box_w > 0.02 and box_h > 0.02:
+                        if box_w > 0.025 and box_h > 0.025:
                             new_img_boxes.append([int(cls),box_center_x,box_center_y,box_w,box_h])
 
 
 
+                """
                 split_img_copy = split_img.copy()
                 for i in new_img_boxes:
                     cls, x_center,y_center, w, h = i[0], i[1], i[2], i[3], i[4]
@@ -201,6 +205,7 @@ class SlicingImage():
                 cv2.resizeWindow("image", 1400, 800)
                 cv2.imshow("image", split_img_copy)
                 cv2.waitKey(0)
+                """
 
 
                 self.save_img_txt(split_img,new_img_boxes)
@@ -228,11 +233,28 @@ if __name__ == '__main__':
             if not os.path.exists(img_name):
                 img_name = img_name.replace("png","JPG")
 
+                if not os.path.exists(img_name):
+                    img_name = img_name.replace("JPG","jpeg")
+
+                    if not os.path.exists(img_name):
+                        img_name = img_name.replace("jpeg","JPEG")
+                        
+                        if not os.path.exists(img_name):
+                            img_name = img_name.replace("JPEG","PNG")
+
+                            if not os.path.exists(img_name):
+                                img_name = img_name.replace("PNG","tif")
 
 
-       
-        img,boxes = img_slicing.boxesFromYOLO(img_name,label_name)
-        img_slicing.showBoxes(img,boxes)
-        images = img_slicing.crop_img(img_name,boxes)
+
+        try: 
+            img,boxes = img_slicing.boxesFromYOLO(img_name,label_name)
+            #img_slicing.showBoxes(img,boxes)
+            images = img_slicing.crop_img(img_name,boxes)
+
+        except:
+            print("ERROR! : ",img_name," dose not exist")
+            continue
+    print("görüntü kırpma işlemi bitti")
 
        
