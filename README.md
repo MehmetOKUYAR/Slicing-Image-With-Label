@@ -10,8 +10,6 @@ Instead of reducing their size while giving your large-sized images as input to 
 `python3 slicingImg.py --img_path your_path --save_path your_path --crop_size 512`
 
 ## You can see how the program works in the image below.
-
-<br><br>
 <p align="center">
   <img src="https://github.com/MehmetOKUYAR/Slicing-Image-With-Label/blob/main/images/method.png" alt="Görüntü Açıklaması">
 </p>
