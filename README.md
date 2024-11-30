@@ -76,6 +76,11 @@ When training object detection models with large images, resizing them to fit th
 </p>
 <br><br>
 
+<p align="center">
+  <img src="https://github.com/MehmetOKUYAR/Slicing-Image-With-Label/blob/main/images/ads%C4%B1z.png" alt="Görüntü Açıklaması">
+</p>
+<br><br>
+
 ### **Future Enhancements**
 - GPU acceleration for faster slicing of large datasets.
 - Advanced label validation to ensure accuracy in complex cases.
