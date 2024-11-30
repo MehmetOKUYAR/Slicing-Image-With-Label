@@ -158,46 +158,47 @@ class SlicingImage():
 
 
 if __name__ == '__main__':
+    # Argument parsing
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path','-i', type=str, default='data/images/', help='path to images')
-    parser.add_argument('--save_path','-o', type=str, default='data/crop_images/', help='path to save images')
-    parser.add_argument('--crop_size','-s', type=int, default=512, help='crop size')
+    parser.add_argument('--img_path', '-i', type=str, default='data/images/', help='Path to the image directory')
+    parser.add_argument('--label_path', '-l', type=str, default='data/labels/', help='Path to the label directory')
+    parser.add_argument('--save_path', '-o', type=str, default='data/crop_images/', help='Path to save cropped images and labels')
+    parser.add_argument('--crop_size', '-s', type=int, default=512, help='Crop size for slicing images')
     opt = parser.parse_args()
 
-
-    # Tanımlı uzantılar listesi
+    # Allowed image extensions
     image_extensions = ['.jpg', '.png', '.JPG', '.jpeg', '.JPEG', '.PNG', '.tif']
 
+    # Initialize SlicingImage object
     img_slicing = SlicingImage(opt.crop_size, opt.save_path)
 
-    # Tüm etiket dosyalarını al
-    label_names = glob(opt.img_path + '/*.txt')
+    # Get all label files
+    label_names = glob(os.path.join(opt.label_path, '*.txt'))
 
     for label_name in tqdm(label_names):
-        img_name_base = label_name.replace('.txt', '')
+        # Determine the corresponding image file
+        img_name_base = os.path.splitext(os.path.basename(label_name))[0]
         img_name = None
 
-        # Uygun uzantıyı bulana kadar kontrol et
         for ext in image_extensions:
-            candidate = Path(img_name_base + ext)
+            candidate = Path(os.path.join(opt.img_path, img_name_base + ext))
             if candidate.exists():
                 img_name = str(candidate)
                 break
 
-        # Eğer hiçbir eşleşme bulunamazsa hatayı bildir ve devam et
+        # If no image file is found, report an error and continue
         if not img_name:
-            print(f"ERROR! : Image file for {label_name} does not exist")
+            print(f"ERROR! : No matching image file found for {label_name}")
             continue
 
         try:
-            # Görüntüyü kırpma işlemini gerçekleştir
+            # Perform slicing and label processing
             img, boxes = img_slicing.boxesFromYOLO(img_name, label_name)
-            # img_slicing.showBoxes(img, boxes) # Görüntüleri göstermek isterseniz
-            images = img_slicing.crop_img(img_name, boxes)
+            img_slicing.crop_img(img_name, boxes)
         except Exception as e:
             print(f"ERROR! : An error occurred while processing {img_name} -> {str(e)}")
             continue
 
-    print("Process completed successfully!")    
+    print("Process completed successfully!")
 
        
