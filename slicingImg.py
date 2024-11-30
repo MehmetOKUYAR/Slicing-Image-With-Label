@@ -58,158 +58,103 @@ class SlicingImage():
 
 
     #======== tespit edilen görüntüyü ve etiket dosyasını  kayıt ediyor  ===================    
-    def save_img_txt(self,image,yolo_data):
-            image_name = f'crop_img_' + datetime.now().strftime("%d.%m.%Y_%H.%M.%S.%f") 
-            cv2.imwrite(os.path.join(self.photo_dir, image_name + ".jpg"), image)
+    def save_img_txt(self, image, yolo_data):
+        """
+        Save the cropped image and its YOLO annotation data to disk.
 
+        Parameters:
+            image (numpy.ndarray): The image to save.
+            yolo_data (list): A list of YOLO-format bounding box annotations.
+        """
+        
+        try:
+            # Benzersiz bir isim oluştur
+            timestamp = datetime.now().strftime("%d.%m.%Y_%H.%M.%S.%f")
+            image_name = f'crop_img_{timestamp}'
+            image_path = os.path.join(self.photo_dir, image_name + ".jpg")
+            label_path = os.path.join(self.photo_dir, image_name + ".txt")
 
-            """
-            height,width,channels = image.shape
-            
-            yolo_data =[]
-            if len(boxes)>0:
-                for bb in boxes:
-                    x1, y1, w, h,cls = bb[0], bb[1], bb[2], bb[3],bb[4]
-                    x_center = (x1+((w)//2))/width
-                    y_center = (y1+((h)//2))/height
-                    w1 = (w)/width
-                    h1 = (h)/height
-                    yolo_data.append([cls,x_center,y_center,w1,h1])
-            """
+            # Görüntüyü kaydet
+            cv2.imwrite(image_path, image)
 
-            file_path = os.path.join(self.photo_dir, image_name+ ".txt")
-            
-            #print("yolo_data",yolo_data)
-            if len(yolo_data)>0:
-                with open(file_path, 'w') as f:
+            # YOLO verilerini kontrol et ve kaydet
+            if len(yolo_data) > 0:
+                # YOLO verilerini NumPy dizisine dönüştür ve sayısal tipe çevir
+                yolo_data = np.array(yolo_data, dtype=float)
+
+                # Yazma işlemi
+                with open(label_path, 'w') as f:
                     np.savetxt(
                         f,
                         yolo_data,
-                        fmt=["%d","%f","%f","%f","%f"]
+                        fmt=["%d", "%.6f", "%.6f", "%.6f", "%.6f"],  # Formatlama
+                        delimiter=" "
                     )
             else:
-                with open(file_path, 'w') as f:
-                    np.savetxt(
-                        f,
-                        yolo_data
-                    )
+                print(f"Warning: No YOLO data found. Skipping label file for {image_name}.")
+
+            print(f"Saved: {image_path} and {label_path}")
+
+        except Exception as e:
+            print(f"Error while saving image or labels: {str(e)}")
 
 
-    def crop_img(self,img,boxes):
+    def crop_img(self, img_path, boxes):
+        """
+        High-resolution image slicing and bounding box adjustment.
 
-        img = cv2.imread(img)
-        img_shape_w = img.shape[1]
-        img_shape_h = img.shape[0]
-        image = img.copy()
-        mod_w =img_shape_w % self.crop_size
-        mod_h = img_shape_h % self.crop_size
-        fark_w = self.crop_size - mod_w
-        fark_h = self.crop_size - mod_h
+        Parameters:
+            img_path (str): Path to the input image.
+            boxes (list): List of bounding boxes in the format [class, x_min, y_min, x_max, y_max].
+        """
+        import cv2
 
-        bolum_w = img_shape_w // self.crop_size
-        bolum_h = img_shape_h // self.crop_size
+        # Load the image and get its dimensions
+        img = cv2.imread(img_path)
+        if img is None:
+            raise ValueError(f"Image at path '{img_path}' could not be loaded.")
+            
+        img_shape_h, img_shape_w = img.shape[:2]
+        crop_size = self.crop_size
 
-        oran_w = fark_w//bolum_w
-        oran_h = fark_h//bolum_h
+        # Calculate padding and step sizes
+        pad_w, pad_h = (crop_size - img_shape_w % crop_size) % crop_size, (crop_size - img_shape_h % crop_size) % crop_size
+        step_x, step_y = max(1, pad_w // max(1, img_shape_w // crop_size)), max(1, pad_h // max(1, img_shape_h // crop_size))
 
-        katsayi_x = -1
-        katsayi_y = 0
+        # Loop through slices
+        for x in range(0, img_shape_w + pad_w, crop_size):
+            for y in range(0, img_shape_h + pad_h, crop_size):
+                # Calculate slice boundaries
+                x_start, y_start = max(0, x - (x // crop_size) * step_x), max(0, y - (y // crop_size) * step_y)
+                x_end, y_end = min(img_shape_w, x_start + crop_size), min(img_shape_h, y_start + crop_size)
 
-        for x in range(0,img_shape_w+fark_w,self.crop_size):
-            katsayi_x +=1
-            katsayi_y = 0
-            for y in range(0,img_shape_h+fark_h,self.crop_size):
-
-                if x == 0 and y == 0:
-                    cv2.rectangle(image,(x,y),(x+self.crop_size,y+self.crop_size),(255,0,0),6)
-                    split_img = img[y:y+self.crop_size,x:x+self.crop_size]
-                   
-                elif x == 0 and y!=0:                    
-                    cv2.rectangle(image,(x,y-katsayi_y*oran_h),(x+self.crop_size,y+self.crop_size-katsayi_y*oran_h),(255,255,255),2)
-                    split_img = img[y-katsayi_y*oran_h:y+self.crop_size-katsayi_y*oran_h,x:x+self.crop_size]
-                    
-                elif x!=0 and y==0:
-                    cv2.rectangle(image,(x-(katsayi_x*oran_w),y),(x+self.crop_size-(katsayi_x*oran_w),y+self.crop_size),(255,0,255),2)
-                    split_img = img[y:y+self.crop_size,x-(katsayi_x*oran_w):x+self.crop_size-(katsayi_x*oran_w)]
-                    
-                else:
-                    cv2.rectangle(image,(x-(katsayi_x*oran_w),y-katsayi_y*oran_h),(x+self.crop_size-(katsayi_x*oran_w),y+self.crop_size-katsayi_y*oran_h),(0,0,0),2)
-                    split_img = img[y-(katsayi_y*oran_h):y+self.crop_size-(katsayi_y*oran_h),x-(katsayi_x*oran_w):x+self.crop_size-(katsayi_x*oran_w)]
-                   
-
-                if x!=0 :
-                    x = x-(katsayi_x*oran_w)
-                if y!=0:
-                    y = y-katsayi_y*oran_h
-                katsayi_y +=1
-
-
+                # Extract the image slice
+                split_img = img[y_start:y_end, x_start:x_end]
                 new_img_boxes = []
-                split_img_shape_w = split_img.shape[1]
-                split_img_shape_h = split_img.shape[0]
+
+                # Update bounding box coordinates for the current slice
                 for box in boxes:
-                    cls, x_min,y_min, x_max, y_max = box[0], box[1], box[2], box[3], box[4]
+                    cls, x_min, y_min, x_max, y_max = box
+                    if (x_min < x_end and x_max > x_start and
+                            y_min < y_end and y_max > y_start):
+                        # Adjust bounding box coordinates relative to the slice
+                        new_x_min = max(0, x_min - x_start)
+                        new_y_min = max(0, y_min - y_start)
+                        new_x_max = min(crop_size, x_max - x_start)
+                        new_y_max = min(crop_size, y_max - y_start)
 
-                    
-                    if (x <= x_min <= x+self.crop_size and y <= y_min <= y+self.crop_size) or \
-                        (x <= x_max <= x+self.crop_size and y <= y_max <= y+self.crop_size) or \
-                        (x <= x_min <= x+self.crop_size and y <= y_max <= y+self.crop_size) or \
-                        (x <= x_max <= x+self.crop_size and y <= y_min <= y+self.crop_size):
-                 
-                        if x-x_min < 0:
-                            new_x_min = abs(x-x_min)
-                        else:
-                            new_x_min = 0
+                        # Normalize coordinates
+                        box_center_x = ((new_x_min + new_x_max) / 2) / crop_size
+                        box_center_y = ((new_y_min + new_y_max) / 2) / crop_size
+                        box_w = (new_x_max - new_x_min) / crop_size
+                        box_h = (new_y_max - new_y_min) / crop_size
 
-                        if y-y_min < 0:
-                            new_y_min = abs(y-y_min)
-                        
-                        else:
-                            new_y_min = 0
+                        # Ensure bounding boxes are valid and add to the list
+                        #if box_w > 0.025 and box_h > 0.025:
+                        new_img_boxes.append([str(cls), float(box_center_x), float(box_center_y), float(box_w), float(box_h)])
 
-
-                        if x - x_max < 0:
-                            if x - x_max < -(x+self.crop_size):
-                                new_x_max = x+self.crop_size
-                            else :
-                                new_x_max = abs(x-x_max)
-
-                        if y - y_max < 0:
-                            if y - y_max < -(y+self.crop_size):
-                                new_y_max = y+self.crop_size
-                            else :
-                                new_y_max = abs(y-y_max)
-
-                        box_center_x = ((new_x_min+new_x_max)//2)/split_img_shape_w
-                        box_center_y = ((new_y_min+new_y_max)//2)/split_img_shape_h
-                        box_w = (new_x_max - new_x_min)/split_img_shape_w
-                        box_h = (new_y_max - new_y_min)/split_img_shape_h
-
-                        #print("box",box_center_x,box_center_y,box_w,box_h)
-                        if box_w > 0.025 and box_h > 0.025:
-                            new_img_boxes.append([int(cls),box_center_x,box_center_y,box_w,box_h])
-
-
-
-                """
-                split_img_copy = split_img.copy()
-                for i in new_img_boxes:
-                    cls, x_center,y_center, w, h = i[0], i[1], i[2], i[3], i[4]
-                    x_min = int((x_center - w/2)*split_img_shape_w)
-                    y_min = int((y_center - h/2)*split_img_shape_h)
-                    x_max = int((x_center + w/2)*split_img_shape_w)
-                    y_max = int((y_center + h/2)*split_img_shape_h)
-                    cv2.rectangle(split_img_copy,(x_min,y_min),(x_max,y_max),(0,255,0),2)
-      
-                cv2.namedWindow("image", cv2.WINDOW_NORMAL)
-                cv2.resizeWindow("image", 1400, 800)
-                cv2.imshow("image", split_img_copy)
-                cv2.waitKey(0)
-                """
-
-
-                self.save_img_txt(split_img,new_img_boxes)
-                
+                # Save the slice and corresponding bounding boxes
+                self.save_img_txt(split_img, new_img_boxes)
 
 
 if __name__ == '__main__':
@@ -220,41 +165,39 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
 
-    img_slicing = SlicingImage(opt.crop_size,opt.save_path)
+    # Tanımlı uzantılar listesi
+    image_extensions = ['.jpg', '.png', '.JPG', '.jpeg', '.JPEG', '.PNG', '.tif']
 
+    img_slicing = SlicingImage(opt.crop_size, opt.save_path)
+
+    # Tüm etiket dosyalarını al
     label_names = glob(opt.img_path + '/*.txt')
 
     for label_name in tqdm(label_names):
-        img_name = label_name.replace('.txt','.jpg')
+        img_name_base = label_name.replace('.txt', '')
+        img_name = None
 
-        if not os.path.exists(img_name):
-            img_name = img_name.replace("jpg","png")
+        # Uygun uzantıyı bulana kadar kontrol et
+        for ext in image_extensions:
+            candidate = Path(img_name_base + ext)
+            if candidate.exists():
+                img_name = str(candidate)
+                break
 
-            if not os.path.exists(img_name):
-                img_name = img_name.replace("png","JPG")
-
-                if not os.path.exists(img_name):
-                    img_name = img_name.replace("JPG","jpeg")
-
-                    if not os.path.exists(img_name):
-                        img_name = img_name.replace("jpeg","JPEG")
-                        
-                        if not os.path.exists(img_name):
-                            img_name = img_name.replace("JPEG","PNG")
-
-                            if not os.path.exists(img_name):
-                                img_name = img_name.replace("PNG","tif")
-
-
-
-        try: 
-            img,boxes = img_slicing.boxesFromYOLO(img_name,label_name)
-            #img_slicing.showBoxes(img,boxes)
-            images = img_slicing.crop_img(img_name,boxes)
-
-        except:
-            print("ERROR! : ",img_name," dose not exist")
+        # Eğer hiçbir eşleşme bulunamazsa hatayı bildir ve devam et
+        if not img_name:
+            print(f"ERROR! : Image file for {label_name} does not exist")
             continue
-    print("görüntü kırpma işlemi bitti")
+
+        try:
+            # Görüntüyü kırpma işlemini gerçekleştir
+            img, boxes = img_slicing.boxesFromYOLO(img_name, label_name)
+            # img_slicing.showBoxes(img, boxes) # Görüntüleri göstermek isterseniz
+            images = img_slicing.crop_img(img_name, boxes)
+        except Exception as e:
+            print(f"ERROR! : An error occurred while processing {img_name} -> {str(e)}")
+            continue
+
+    print("Process completed successfully!")    
 
        
